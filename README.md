@@ -132,8 +132,8 @@ Loyiha `fly.toml` bilan birga keladi — bot HTTP server emas (long-polling), sh
 3. **Postgres yaratish va bog'lash** — bu `DATABASE_URL` maxfiy o'zgaruvchisini avtomatik o'rnatadi:
 
    ```bash
-   flyctl postgres create --name pishiqbot-db --region waw --initial-cluster-size 1 --vm-size shared-cpu-1x --volume-size 1
-   flyctl postgres attach pishiqbot-db --app pishiqbot
+   flyctl mpg create --name pishiqbot-db --region fra --plan Basic
+   flyctl mpg attach <cluster-id> --app pishiqbot
    ```
 
    (`fly postgres attach` `postgres://...` formatida beradi — ilova buni avtomatik

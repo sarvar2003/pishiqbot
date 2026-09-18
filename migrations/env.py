@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import settings
 from app.database.models import Base
+from app.utils.db_url import split_connect_args
 
 config = context.config
 
@@ -40,7 +41,8 @@ def do_run_migrations(connection) -> None:
 
 
 async def run_migrations_online() -> None:
-    connectable = create_async_engine(get_url(), poolclass=pool.NullPool)
+    clean_url, connect_args = split_connect_args(get_url())
+    connectable = create_async_engine(clean_url, poolclass=pool.NullPool, connect_args=connect_args)
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)
     await connectable.dispose()
