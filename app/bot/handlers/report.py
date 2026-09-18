@@ -5,7 +5,7 @@ import datetime
 from aiogram import F, Router
 from aiogram.filters import StateFilter
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.bot.handlers.shared import cancel_flow
@@ -13,10 +13,12 @@ from app.bot.keyboards.common import CB_CANCEL, cancel_only_keyboard
 from app.bot.keyboards.main_menu import BTN_REPORT
 from app.bot.keyboards.reports import (
     CB_PERIOD_PREFIX,
+    CB_REPORT_PDF,
     PERIOD_MONTH,
     PERIOD_PREV_MONTH,
     PERIOD_TODAY,
     PERIOD_WEEK,
+    PERIOD_YEAR,
     PERIOD_YESTERDAY,
     report_period_keyboard,
 )
@@ -24,6 +26,7 @@ from app.bot.states.transaction_states import ReportStates
 from app.config import settings
 from app.database.models import User
 from app.database.repositories.transaction_repo import TransactionRepository
+from app.services.pdf_report_service import build_report_pdf
 from app.services.report_service import CategoryBreakdownItem, PeriodSummary, ReportService
 from app.utils.datetime_utils import parse_date_ddmmyyyy
 from app.utils.formatting import format_amount, format_signed_amount
@@ -36,6 +39,7 @@ _PERIOD_LABELS = {
     PERIOD_WEEK: "Shu hafta",
     PERIOD_MONTH: "Bu oy",
     PERIOD_PREV_MONTH: "O'tgan oy",
+    PERIOD_YEAR: "Bu yil",
 }
 
 
@@ -81,6 +85,8 @@ async def _period_range(service: ReportService, key: str) -> tuple[str, datetime
         return _PERIOD_LABELS[key], *service.period_this_month()
     if key == PERIOD_PREV_MONTH:
         return _PERIOD_LABELS[key], *service.period_previous_month()
+    if key == PERIOD_YEAR:
+        return _PERIOD_LABELS[key], *service.period_this_year()
     raise ValueError(f"Unknown period key: {key}")
 
 
@@ -101,7 +107,10 @@ async def choose_period(callback: CallbackQuery, state: FSMContext, session: Asy
     summary = await service.summary_for_period(db_user.id, label, date_from, date_to)
     breakdown = await service.expense_breakdown(db_user.id, date_from, date_to)
     text = _period_text(summary) + "\n\n" + _breakdown_text(breakdown)
-    await callback.message.edit_text(text, reply_markup=report_period_keyboard())
+    await state.update_data(
+        report_label=label, report_date_from=date_from.isoformat(), report_date_to=date_to.isoformat()
+    )
+    await callback.message.edit_text(text, reply_markup=report_period_keyboard(show_pdf=True))
     await callback.answer()
 
 
@@ -139,7 +148,34 @@ async def custom_date_to(message: Message, state: FSMContext, session: AsyncSess
     summary = await service.summary_for_period(db_user.id, label, dt_from, dt_to)
     breakdown = await service.expense_breakdown(db_user.id, dt_from, dt_to)
     text = _period_text(summary) + "\n\n" + _breakdown_text(breakdown)
-    await message.answer(text, reply_markup=report_period_keyboard())
+    await state.update_data(
+        report_label=label, report_date_from=dt_from.isoformat(), report_date_to=dt_to.isoformat()
+    )
+    await message.answer(text, reply_markup=report_period_keyboard(show_pdf=True))
+
+
+@router.callback_query(F.data == CB_REPORT_PDF)
+async def send_report_pdf(callback: CallbackQuery, state: FSMContext, session: AsyncSession, db_user: User) -> None:
+    data = await state.get_data()
+    label = data.get("report_label")
+    if label is None:
+        await callback.answer("❌ Avval davrni tanlang.", show_alert=True)
+        return
+
+    date_from = datetime.datetime.fromisoformat(data["report_date_from"])
+    date_to = datetime.datetime.fromisoformat(data["report_date_to"])
+
+    service = _report_service(session)
+    summary = await service.summary_for_period(db_user.id, label, date_from, date_to)
+    breakdown = await service.expense_breakdown(db_user.id, date_from, date_to)
+    now = datetime.datetime.now(settings.zone_info)
+    pdf_bytes = build_report_pdf(label, summary, breakdown, now)
+
+    await callback.message.answer_document(
+        BufferedInputFile(pdf_bytes, filename=f"hisobot_{now:%Y%m%d_%H%M}.pdf"),
+        caption=f"📄 Hisobot: {label}",
+    )
+    await callback.answer()
 
 
 @router.callback_query(F.data == CB_CANCEL, StateFilter(ReportStates))

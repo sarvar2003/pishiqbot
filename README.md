@@ -10,7 +10,8 @@ uchun tez va qulay tranzaksiya kiritishga mo'ljallangan.
 - 🔄 Naqd ↔ Karta pul o'tkazmalari (kirim/chiqim hisoblanmaydi) — O'zbekistondagi amaliyotga mos
   ravishda 1% komissiya bilan: qabul qiluvchi tomon summadan 1% kam oladi, umumiy balans komissiya
   miqdoriga kamayadi
-- 📊 Davr bo'yicha hisobotlar (bugun/kecha/hafta/oy/o'tgan oy/ixtiyoriy sana) + kategoriya bo'yicha taqsimot
+- 📊 Davr bo'yicha hisobotlar (bugun/kecha/hafta/oy/o'tgan oy/yil/ixtiyoriy sana oralig'i) + kategoriya
+  bo'yicha chiqim taqsimoti, va tanlangan davr uchun 📄 PDF hisobot yuklab olish
 - 📋 Filtrlanadigan va sahifalanadigan tranzaksiyalar tarixi, tahrirlash va o'chirish
 - ⚙️ Foydalanuvchi kategoriyalarini yaratish/o'zgartirish/o'chirish (ishlatilgan kategoriya yumshoq o'chiriladi)
 - Tez kiritish: `- 150000 oziq-ovqat karta` yoki `+ 500000 freelance karta`
@@ -39,6 +40,11 @@ tests/                       Biznes logika testlari (pytest + in-memory SQLite)
 
 **Muhim dizayn qarorlari:**
 
+- **PDF hisobot** — `fpdf2` bilan generatsiya qilinadi (sof Python, tashqi tizim kutubxonalari kerak
+  emas, masalan WeasyPrint talab qiladigan Pango/Cairo kabi). Fayl xotirada yaratiladi va to'g'ridan-to'g'ri
+  Telegram hujjat sifatida yuboriladi — diskka yozilmaydi, alohida servis yoki saqlash joyi talab qilinmaydi,
+  shuning uchun Fly.io'da qo'shimcha xarajat keltirmaydi. Kategoriya nomlari PDF'da emojisiz ko'rsatiladi,
+  chunki asosiy PDF shriftlari (Helvetica) emoji'ni qo'llab-quvvatlamaydi.
 - **Pul hech qachon float emas.** `amount` butun son (so'm) sifatida saqlanadi; barcha arifmetika butun sonlar bilan.
 - **Balans hech qachon alohida saqlanmaydi** — har doim `Transaction` jadvalidan real vaqtda hisoblanadi, shu sababli u hech qachon nomuvofiq holatga tushmaydi.
 - **O'tkazmalar kirim/chiqim emas** — alohida `type=transfer` va `transfer_from`/`transfer_to` ustunlari orqali ifodalanadi, hisobot va kategoriya taqsimotidan chiqarib tashlanadi.

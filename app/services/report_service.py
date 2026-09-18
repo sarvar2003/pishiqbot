@@ -11,8 +11,10 @@ from app.utils.datetime_utils import (
     start_of_day,
     start_of_month,
     start_of_next_month,
+    start_of_next_year,
     start_of_previous_month,
     start_of_week,
+    start_of_year,
 )
 
 
@@ -62,6 +64,10 @@ class ReportService:
     def period_previous_month(self) -> tuple[datetime.datetime, datetime.datetime]:
         now = self._now()
         return start_of_previous_month(now), start_of_month(now)
+
+    def period_this_year(self) -> tuple[datetime.datetime, datetime.datetime]:
+        now = self._now()
+        return start_of_year(now), start_of_next_year(now)
 
     async def summary_for_period(
         self, user_id: int, label: str, date_from: datetime.datetime, date_to: datetime.datetime

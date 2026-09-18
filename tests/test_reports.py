@@ -81,3 +81,21 @@ async def test_date_range_boundaries_are_respected(session: AsyncSession, user: 
     summary = await report_service.summary_for_period(user.id, "Bugun", date_from, date_to)
 
     assert summary.expense == 222
+
+
+async def test_yearly_report_excludes_previous_year(session: AsyncSession, user: User) -> None:
+    service = TransactionService(session, TransactionRepository(session), CategoryRepository(session))
+    income_cat = (await CategoryRepository(session).list_for_user(user.id, CategoryType.income))[0]
+
+    now = datetime.datetime.now(TASHKENT)
+    this_year = now.replace(month=6, day=15, hour=10, minute=0, second=0, microsecond=0)
+    last_day_last_year = now.replace(year=now.year - 1, month=12, day=31, hour=23, minute=59, second=0, microsecond=0)
+
+    await _add(service, user, TransactionType.income, 5_000_000, income_cat, PaymentMethod.card, this_year)
+    await _add(service, user, TransactionType.income, 999_999, income_cat, PaymentMethod.card, last_day_last_year)
+
+    report_service = ReportService(TransactionRepository(session), TASHKENT)
+    date_from, date_to = report_service.period_this_year()
+    summary = await report_service.summary_for_period(user.id, "Bu yil", date_from, date_to)
+
+    assert summary.income == 5_000_000
