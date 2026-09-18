@@ -1,0 +1,25 @@
+# Fly.io app config. See https://fly.io/docs/reference/configuration/
+# This bot has no HTTP server - it's a long-polling worker, so there is
+# deliberately no [http_service]/[[services]] block. The machine just
+# runs app/main.py continuously.
+
+app = "pishiqbot"
+primary_region = "waw"
+
+[build]
+
+[env]
+  TIMEZONE = "Asia/Tashkent"
+
+[deploy]
+  release_command = "alembic upgrade head"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "256mb"
+
+[processes]
+  app = "python -m app.main"
+
+[[restart]]
+  policy = "always"

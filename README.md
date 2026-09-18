@@ -112,6 +112,56 @@ Qamrov: kirim/chiqim qo'shish, naqd/karta/umumiy balans hisob-kitobi, ikki yo'na
 tranzaksiyani tahrirlash/o'chirish, oylik hisobot va kategoriya bo'yicha taqsimot, sana oralig'i chegaralari,
 ruxsatsiz foydalanuvchini rad etish, va noto'g'ri/manfiy/nol summalarni validatsiya qilish.
 
+## Fly.io ga joylash
+
+Loyiha `fly.toml` bilan birga keladi — bot HTTP server emas (long-polling), shuning uchun
+`fly.toml`da `[http_service]` bo'limi yo'q, faqat uzluksiz ishlaydigan worker sifatida tavsiflangan.
+
+1. **flyctl o'rnatish va kirish** (agar hali qilinmagan bo'lsa):
+
+   ```bash
+   flyctl auth login
+   ```
+
+2. **Ilovani yaratish** (`fly.toml`dagi `app` nomi band bo'lsa, uni o'zgartiring):
+
+   ```bash
+   flyctl apps create pishiqbot
+   ```
+
+3. **Postgres yaratish va bog'lash** — bu `DATABASE_URL` maxfiy o'zgaruvchisini avtomatik o'rnatadi:
+
+   ```bash
+   flyctl postgres create --name pishiqbot-db --region waw --initial-cluster-size 1 --vm-size shared-cpu-1x --volume-size 1
+   flyctl postgres attach pishiqbot-db --app pishiqbot
+   ```
+
+   (`fly postgres attach` `postgres://...` formatida beradi — ilova buni avtomatik
+   `postgresql+asyncpg://...`ga o'giradi, qo'lda o'zgartirish shart emas.)
+
+4. **Maxfiy o'zgaruvchilarni o'rnatish:**
+
+   ```bash
+   flyctl secrets set BOT_TOKEN=<sizning tokeningiz> ALLOWED_TELEGRAM_USER_ID=<sizning Telegram ID'ingiz> --app pishiqbot
+   ```
+
+5. **Joylash:**
+
+   ```bash
+   flyctl deploy --app pishiqbot
+   ```
+
+   Deploy paytida `release_command = "alembic upgrade head"` avtomatik ishlaydi, shuning
+   uchun migratsiyalar har bir joylashda o'zi yangilanadi.
+
+6. **Tekshirish:**
+
+   ```bash
+   flyctl logs --app pishiqbot
+   ```
+
+   Loglarda `Run polling for bot @...` qatorini ko'rsangiz, bot ishga tushgan.
+
 ## Muhit o'zgaruvchilari
 
 | O'zgaruvchi | Tavsif |

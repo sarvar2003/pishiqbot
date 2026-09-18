@@ -25,9 +25,15 @@ class Settings(BaseSettings):
 
     @field_validator("database_url")
     @classmethod
-    def _database_url_not_empty(cls, v: str) -> str:
+    def _normalize_database_url(cls, v: str) -> str:
         if not v or not v.strip():
             raise ValueError("DATABASE_URL must not be empty")
+        # Managed Postgres providers (e.g. `fly postgres attach`) hand out a plain
+        # postgres:// / postgresql:// URL; we always need the asyncpg driver scheme.
+        if v.startswith("postgres://"):
+            v = "postgresql+asyncpg://" + v[len("postgres://") :]
+        elif v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://") :]
         return v
 
     @field_validator("timezone")

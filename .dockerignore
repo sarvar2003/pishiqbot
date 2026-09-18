@@ -6,3 +6,6 @@ venv/
 .git/
 .pytest_cache/
 tests/
+*.db
+fly.toml
+.fly/
