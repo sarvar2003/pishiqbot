@@ -7,7 +7,9 @@ uchun tez va qulay tranzaksiya kiritishga mo'ljallangan.
 
 - ➕ Kirim / ➖ Chiqim — bir necha bosishda tranzaksiya qo'shish
 - 💵 Naqd va 💳 Karta bo'yicha alohida balanslar, tranzaksiyalardan hisoblanadi (saqlanmaydi)
-- 🔄 Naqd ↔ Karta pul o'tkazmalari (kirim/chiqim hisoblanmaydi, umumiy balansga ta'sir qilmaydi)
+- 🔄 Naqd ↔ Karta pul o'tkazmalari (kirim/chiqim hisoblanmaydi) — O'zbekistondagi amaliyotga mos
+  ravishda 1% komissiya bilan: qabul qiluvchi tomon summadan 1% kam oladi, umumiy balans komissiya
+  miqdoriga kamayadi
 - 📊 Davr bo'yicha hisobotlar (bugun/kecha/hafta/oy/o'tgan oy/ixtiyoriy sana) + kategoriya bo'yicha taqsimot
 - 📋 Filtrlanadigan va sahifalanadigan tranzaksiyalar tarixi, tahrirlash va o'chirish
 - ⚙️ Foydalanuvchi kategoriyalarini yaratish/o'zgartirish/o'chirish (ishlatilgan kategoriya yumshoq o'chiriladi)
@@ -39,7 +41,8 @@ tests/                       Biznes logika testlari (pytest + in-memory SQLite)
 
 - **Pul hech qachon float emas.** `amount` butun son (so'm) sifatida saqlanadi; barcha arifmetika butun sonlar bilan.
 - **Balans hech qachon alohida saqlanmaydi** — har doim `Transaction` jadvalidan real vaqtda hisoblanadi, shu sababli u hech qachon nomuvofiq holatga tushmaydi.
-- **O'tkazmalar kirim/chiqim emas** — alohida `type=transfer` va `transfer_from`/`transfer_to` ustunlari orqali ifodalanadi, hisobot va balans hisob-kitoblaridan chiqarib tashlanadi (faqat naqd/karta orasida ko'chiriladi).
+- **O'tkazmalar kirim/chiqim emas** — alohida `type=transfer` va `transfer_from`/`transfer_to` ustunlari orqali ifodalanadi, hisobot va kategoriya taqsimotidan chiqarib tashlanadi.
+- **O'tkazma komissiyasi** — har bir naqd↔karta o'tkazmasidan 1% komissiya olinadi (`Transaction.fee`, butun son sifatida, yarim yuqoriga yaxlitlash: `(amount + 50) // 100`). Yuboruvchi tomon summani to'liq yo'qotadi, qabul qiluvchi tomon `amount - fee` oladi — shu sababli umumiy balans endi o'tkazmalarda komissiya miqdoriga kamayadi (bu haqiqiy hayotdagi naqd/karta almashtirish amaliyotiga mos).
 - **Kategoriya o'chirish xavfsiz** — agar kategoriyada tranzaksiyalar bo'lsa, u yumshoq o'chiriladi (`is_active=False`), aks holda butunlay o'chiriladi.
 - **Tez kiritish parseri deterministik** — `+/- summa kategoriya [naqd|karta] [izoh]` formatini tan oladi; kategoriya yoki to'lov usuli aniq bo'lmasa, botni hech qachon taxmin qilmaydi — foydalanuvchidan tanlashni so'raydi.
 

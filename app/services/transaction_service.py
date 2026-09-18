@@ -11,6 +11,15 @@ from app.utils.exceptions import InvalidAmountError, NotFoundError
 
 MAX_AMOUNT = 999_999_999_999
 
+# Naqd<->karta o'tkazmalar uchun komissiya - O'zbekistonda naqd/karta almashtirishda
+# odatiy amaliyot. transfer_from full amount ni yo'qotadi, transfer_to amount - fee oladi.
+TRANSFER_COMMISSION_PERCENT = 1
+
+
+def calculate_transfer_fee(amount: int, percent: int = TRANSFER_COMMISSION_PERCENT) -> int:
+    """Integer-only, round-half-up commission: fee = round(amount * percent / 100)."""
+    return (amount * percent + 50) // 100
+
 
 def validate_amount(raw: str) -> int:
     """Parse and validate a user-provided amount string. Raises InvalidAmountError on any problem."""
@@ -72,10 +81,12 @@ class TransactionService:
             raise InvalidAmountError("❌ Summa noldan katta bo'lishi kerak.")
         if from_method == to_method:
             raise InvalidAmountError("❌ Bir xil to'lov usuliga o'tkazib bo'lmaydi.")
+        fee = calculate_transfer_fee(amount)
         transaction = await self.transaction_repo.create(
             user_id=user_id,
             type=TransactionType.transfer,
             amount=amount,
+            fee=fee,
             transfer_from=from_method,
             transfer_to=to_method,
             note=note,

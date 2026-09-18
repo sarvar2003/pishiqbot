@@ -22,6 +22,12 @@ def split_connect_args(url: str) -> tuple[str, dict]:
     matter into asyncpg connect_args, so create_async_engine gets a clean URL.
     """
     parts = urlsplit(url)
+    if not parts.query:
+        # Nothing to strip - return the URL untouched. Reconstructing via
+        # urlunsplit mangles netloc-less triple-slash URLs (sqlite:///path
+        # loses a slash), so skip the round-trip whenever it isn't needed.
+        return url, {}
+
     connect_args: dict = {}
     kept = []
     for key, value in parse_qsl(parts.query):

@@ -19,7 +19,7 @@ from app.bot.keyboards.transfer import (
 from app.bot.states.transaction_states import TransferStates
 from app.config import settings
 from app.database.models import PaymentMethod, User
-from app.services.transaction_service import validate_amount
+from app.services.transaction_service import calculate_transfer_fee, validate_amount
 from app.utils.exceptions import AppError
 from app.utils.formatting import format_amount
 
@@ -29,6 +29,30 @@ _DIRECTION_LABELS = {
     (PaymentMethod.cash, PaymentMethod.card): "💵 Naqd → 💳 Karta",
     (PaymentMethod.card, PaymentMethod.cash): "💳 Karta → 💵 Naqd",
 }
+
+
+def _transfer_preview_text(from_method: PaymentMethod, to_method: PaymentMethod, amount: int) -> str:
+    fee = calculate_transfer_fee(amount)
+    net = amount - fee
+    return (
+        f"{_DIRECTION_LABELS[(from_method, to_method)]}\n"
+        f"💰 Summa: {format_amount(amount)}\n"
+        f"💸 Komissiya (1%): {format_amount(fee)}\n"
+        f"✅ Kiritiladi: {format_amount(net)}\n\n"
+        "Saqlaymi?"
+    )
+
+
+def _transfer_saved_text(from_method: PaymentMethod, to_method: PaymentMethod, amount: int) -> str:
+    fee = calculate_transfer_fee(amount)
+    net = amount - fee
+    return (
+        "✅ O'tkazma saqlandi!\n\n"
+        f"{_DIRECTION_LABELS[(from_method, to_method)]}\n"
+        f"💰 Summa: {format_amount(amount)}\n"
+        f"💸 Komissiya (1%): {format_amount(fee)}\n"
+        f"✅ Kiritildi: {format_amount(net)}"
+    )
 
 
 @router.message(F.text == BTN_TRANSFER)
@@ -76,10 +100,7 @@ async def process_transfer_amount(message: Message, state: FSMContext) -> None:
     to_method = PaymentMethod(data["to_method"])
     await state.update_data(amount=amount)
     await state.set_state(TransferStates.confirming)
-    text = (
-        f"{_DIRECTION_LABELS[(from_method, to_method)]}\n"
-        f"{format_amount(amount)}\n\nSaqlaymi?"
-    )
+    text = _transfer_preview_text(from_method, to_method, amount)
     await message.answer(text, reply_markup=confirmation_keyboard())
 
 
@@ -114,11 +135,7 @@ async def confirm_transfer(callback: CallbackQuery, state: FSMContext, session: 
     )
     await state.clear()
 
-    text = (
-        f"✅ O'tkazma saqlandi!\n\n"
-        f"{_DIRECTION_LABELS[(from_method, to_method)]}\n"
-        f"💰 Summa: {format_amount(amount)}"
-    )
+    text = _transfer_saved_text(from_method, to_method, amount)
     await callback.message.edit_text(text)
     await callback.message.answer("Asosiy menyu:", reply_markup=main_menu_keyboard())
     await callback.answer("✅ Saqlandi!")

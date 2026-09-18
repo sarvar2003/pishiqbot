@@ -29,7 +29,8 @@ class BalanceService:
         expense = await self.transaction_repo.sum_amount(
             user_id, TransactionType.expense, payment_method=method
         )
-        transfers_in = await self.transaction_repo.sum_transfers(user_id, "transfer_to", method)
+        # transfer_to only receives amount - commission fee; transfer_from loses the full amount.
+        transfers_in = await self.transaction_repo.sum_transfers(user_id, "transfer_to", method, net=True)
         transfers_out = await self.transaction_repo.sum_transfers(user_id, "transfer_from", method)
         return income - expense + transfers_in - transfers_out
 

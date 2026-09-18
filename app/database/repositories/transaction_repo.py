@@ -118,10 +118,16 @@ class TransactionRepository:
         return int(result.scalar_one())
 
     async def sum_transfers(
-        self, user_id: int, direction_field: str, payment_method: PaymentMethod
+        self, user_id: int, direction_field: str, payment_method: PaymentMethod, net: bool = False
     ) -> int:
+        """Sums transfer amounts in the given direction. `net=True` subtracts the
+        commission fee - use it for transfer_to, since the receiving side only
+        gets amount - fee (the source side still loses the full amount)."""
         column = getattr(Transaction, direction_field)
-        stmt = select(func.coalesce(func.sum(Transaction.amount), 0)).where(
+        amount_expr = (
+            Transaction.amount - func.coalesce(Transaction.fee, 0) if net else Transaction.amount
+        )
+        stmt = select(func.coalesce(func.sum(amount_expr), 0)).where(
             Transaction.user_id == user_id,
             Transaction.type == TransactionType.transfer,
             column == payment_method,

@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database.models import CategoryType, PaymentMethod, TransactionType, User
 from app.database.repositories.category_repo import CategoryRepository
 from app.database.repositories.transaction_repo import TransactionRepository
-from app.services.transaction_service import TransactionService, validate_amount
+from app.services.transaction_service import TransactionService, calculate_transfer_fee, validate_amount
 from app.utils.exceptions import InvalidAmountError, NotFoundError
 from tests.conftest import dt
 
@@ -129,3 +129,18 @@ async def test_add_transaction_rejects_non_positive_amount(session: AsyncSession
             payment_method=PaymentMethod.cash,
             transaction_date=dt(),
         )
+
+
+@pytest.mark.parametrize(
+    "amount,expected_fee",
+    [
+        (100, 1),  # exactly 1%
+        (150, 2),  # 1.5 rounds half up to 2
+        (149, 1),  # 1.49 rounds down to 1
+        (50, 1),  # 0.5 rounds half up to 1
+        (49, 0),  # 0.49 rounds down to 0
+        (1_000_000, 10_000),
+    ],
+)
+async def test_calculate_transfer_fee_rounds_half_up(amount: int, expected_fee: int) -> None:
+    assert calculate_transfer_fee(amount) == expected_fee

@@ -6,7 +6,7 @@ from app.database.models import CategoryType, PaymentMethod, TransactionType, Us
 from app.database.repositories.category_repo import CategoryRepository
 from app.database.repositories.transaction_repo import TransactionRepository
 from app.services.balance_service import BalanceService
-from app.services.transaction_service import TransactionService
+from app.services.transaction_service import TransactionService, calculate_transfer_fee
 from tests.conftest import dt
 
 
@@ -83,10 +83,12 @@ async def test_transfer_cash_to_card(session: AsyncSession, user: User) -> None:
         from_method=PaymentMethod.cash, to_method=PaymentMethod.card, transaction_date=dt(),
     )
     balance_after = await BalanceService(TransactionRepository(session)).get_balance(user.id)
+    fee = calculate_transfer_fee(500_000)
 
     assert balance_after.cash == balance_before.cash - 500_000
-    assert balance_after.card == balance_before.card + 500_000
-    assert balance_after.total == balance_before.total  # transfers never change the total
+    assert balance_after.card == balance_before.card + 500_000 - fee
+    # the 1% commission is withheld on the receiving side, so the total shrinks by exactly the fee
+    assert balance_after.total == balance_before.total - fee
 
 
 async def test_transfer_card_to_cash(session: AsyncSession, user: User) -> None:
@@ -103,7 +105,28 @@ async def test_transfer_card_to_cash(session: AsyncSession, user: User) -> None:
         from_method=PaymentMethod.card, to_method=PaymentMethod.cash, transaction_date=dt(),
     )
     balance_after = await BalanceService(TransactionRepository(session)).get_balance(user.id)
+    fee = calculate_transfer_fee(300_000)
 
     assert balance_after.card == balance_before.card - 300_000
-    assert balance_after.cash == balance_before.cash + 300_000
-    assert balance_after.total == balance_before.total
+    assert balance_after.cash == balance_before.cash + 300_000 - fee
+    assert balance_after.total == balance_before.total - fee
+
+
+async def test_transfer_commission_is_one_percent_rounded_half_up(session: AsyncSession, user: User) -> None:
+    service = await _setup(session, user)
+    income_cat = (await CategoryRepository(session).list_for_user(user.id, CategoryType.income))[0]
+    await service.add_income_or_expense(
+        user_id=user.id, type_=TransactionType.income, amount=10_000_000,
+        category=income_cat, payment_method=PaymentMethod.cash, transaction_date=dt(),
+    )
+
+    transaction = await service.add_transfer(
+        user_id=user.id, amount=1_000_000,
+        from_method=PaymentMethod.cash, to_method=PaymentMethod.card, transaction_date=dt(),
+    )
+
+    assert transaction.fee == 10_000  # exactly 1% of 1,000,000
+    balance = await BalanceService(TransactionRepository(session)).get_balance(user.id)
+    assert balance.card == 990_000
+    assert balance.cash == 9_000_000
+    assert balance.total == 9_990_000

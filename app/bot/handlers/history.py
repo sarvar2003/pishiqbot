@@ -157,7 +157,17 @@ async def clear_filter(callback: CallbackQuery, state: FSMContext, session: Asyn
 def _transaction_detail_text(t: Transaction) -> str:
     if t.type == TransactionType.transfer:
         direction = "💵 Naqd → 💳 Karta" if t.transfer_from == PaymentMethod.cash else "💳 Karta → 💵 Naqd"
-        return f"🔄 O'tkazma\n\n{direction}\n💰 Summa: {format_amount(t.amount)}\n📅 Sana: {t.transaction_date.strftime('%d.%m.%Y %H:%M')}"
+        fee = t.fee or 0
+        lines = [
+            "🔄 O'tkazma",
+            "",
+            direction,
+            f"💰 Summa: {format_amount(t.amount)}",
+            f"💸 Komissiya: {format_amount(fee)}",
+            f"✅ Kiritildi: {format_amount(t.amount - fee)}",
+            f"📅 Sana: {t.transaction_date.strftime('%d.%m.%Y %H:%M')}",
+        ]
+        return "\n".join(lines)
     return build_confirmation_text(t.type, t.amount, t.category, t.payment_method, t.note, t.transaction_date, saved=True)
 
 

@@ -55,6 +55,10 @@ class Transaction(Base):
     transfer_to: Mapped[PaymentMethod | None] = mapped_column(
         SAEnum(PaymentMethod, name="payment_method_to"), nullable=True
     )
+    # Commission withheld from a transfer (e.g. naqd<->karta exchange fee).
+    # `amount` leaves transfer_from in full; transfer_to only receives amount - fee.
+    # NULL for income/expense.
+    fee: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
     note: Mapped[str | None] = mapped_column(String(512), nullable=True)
     transaction_date: Mapped[datetime.datetime] = mapped_column(
